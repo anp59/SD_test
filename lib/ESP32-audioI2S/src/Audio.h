@@ -12,11 +12,12 @@
 #include "Arduino.h"
 #include "base64.h"
 #include "SPI.h"
-#include "SD.h"
-#include "SD_MMC.h"
-#include "SPIFFS.h"
-#include "FS.h"
-#include "FFat.h"
+// #include "SD.h"
+// #include "SD_MMC.h"
+// #include "SPIFFS.h"
+// #include "FS.h"
+// #include "FFat.h"
+#include "SD_Libs.h"    // anp59
 #include "WiFiClientSecure.h"
 #include "driver/i2s.h"
 
