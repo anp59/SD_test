@@ -9,15 +9,20 @@
 #ifndef AUDIO_H_
 #define AUDIO_H_
 #define FF_LFN_UNICODE      2
+#define USE_SDFAT           1   // set to 0 if SD, SD_MMC or SPIFFS is to be used   
+
 #include "Arduino.h"
 #include "base64.h"
 #include "SPI.h"
-// #include "SD.h"
-// #include "SD_MMC.h"
-// #include "SPIFFS.h"
-// #include "FS.h"
-// #include "FFat.h"
-#include "SD_Libs.h"    // anp59
+#if USE_SDFAT 
+    #include "SD_SdFat.h"
+#else
+    #include "SD.h"
+    #include "SD_MMC.h"
+    #include "SPIFFS.h"
+    #include "FS.h"
+    #include "FFat.h"
+#endif
 #include "WiFiClientSecure.h"
 #include "driver/i2s.h"
 

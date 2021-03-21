@@ -1,17 +1,7 @@
-/*
-SD-Player based on ESP32-audioI2S. 
-It works with different SD-Libs (SD, SD_MMC, SPDIFF, SDFAT)
-with minimal adjustments to the code in ESP32-audioI2S.
-*/
-
 #include "Arduino.h"
-#include "WiFiMulti.h"
 #include "Audio.h"
 
 // Digital I/O used
-#ifndef SS
-    #define SS         5
-#endif
 #define SD_CS          5
 #define SPI_SCK       18
 #define SPI_MISO      19
@@ -24,10 +14,9 @@ with minimal adjustments to the code in ESP32-audioI2S.
 Audio audio;
 
 
-const char *name(File& f)
-{
+const char *name(File& f) {
 #ifdef SDFATFS_USED
-    static char buf[256];
+    static char buf[64];
     buf[0] = 0;
     f.getName(buf, sizeof(buf));
     return (const char *)buf;
@@ -36,10 +25,12 @@ const char *name(File& f)
 #endif
 }
 
-void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
+void listDir(fs::FS &fs, const char * dirname, uint8_t levels) {
+    char path[256] = "";    
+    int len = 0;         
+    
     Serial.printf("Listing directory: %s\n", dirname);
     File root = fs.open(dirname);
-    
     if(!root){
         Serial.println("Failed to open directory");
         return;
@@ -54,7 +45,16 @@ void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
             Serial.print("  DIR : ");
             Serial.println(name(file));
             if(levels){
-                listDir(fs, name(file), levels -1);
+                // generate complete path if SdFat is used
+                if ( (name(file))[0] != '/' ) {
+                    strcpy(path, dirname); 
+                    len = strlen(path);
+                    if ( !(len == 1 && path[0] == '/') )    // not root (/) 
+                        path[len++] = '/'; 
+                }
+                //
+                strcpy(path+len, name(file));
+                listDir(fs, path, levels -1);
             }
         } else {
             Serial.print("  FILE: ");
@@ -66,49 +66,37 @@ void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
     }
 }
 
+
 void setup() {
     Serial.begin(115200);
+    Serial.println();
 
-#if SD_IMPL == 0
-    if ( !SD.begin(SD_CS, SPI, 25000000) )
-        Serial.println("Card Mount Failed");
-
-#elif SD_IMPL == 1
-    if ( !SD.begin() )
-        Serial.println("Card Mount Failed");
+    // separate SPI initialisation only required if the SPI standard GPIO is not used
+    // pinMode(SD_CS, OUTPUT);      
+    // digitalWrite(SD_CS, HIGH);
+    // SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
+    // SPI.setFrequency(25000000);
+     
+    if (!SD.begin(SD_CS, SD_SCK_MHZ(25))) 
+        SD.initErrorHalt();     // SdFat-lib helper function
+      
+    Serial.printf("SD FAT-type = %d\n", SD.fatType());
     
-#elif SD_IMPL == 2
-    if ( !SD.begin() )
-        Serial.println("Card Mount Failed");
-
-#elif SD_IMPL == 3
-    //if (!SD.begin(SD_CS, SD_SCK_MHZ(25))) 
-    if ( !SD.begin() ) 
-        SD.initErrorHalt();
-        
-    Serial.printf("\n\nSdFat type = %d\n", SD.fatType());
-    //Serial.printf("SD_Card type = %d\n", SD.card()->type());
-#endif
-
     // set SdFatConfig MAINTAIN_FREE_CLUSTER_COUNT non-zero. 
     // Then only the first call will take time.
     // Serial.printf("SD_UsedBytes = %.6f GB\n", SD.usedBytes()/(1024*1024*1024.0));
-    
-    // Serial.printf("SD_TotalBytes = %.6f GB\n", SD.totalBytes()/(1024*1024*1024.0));
+    Serial.printf("SD_TotalBytes = %.6f GB\n", SD.totalBytes()/(1024*1024*1024.0));
 
     audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
-    audio.setVolume(10); // 0...21
-    listDir(SD, "/", 5);
+    audio.setVolume(1); // 0...21
     
-    //audio.connecttoFS(SD, "/320k_test.mp3");
-    audio.connecttoFS(SD, "/test.mp3");
-//    audio.connecttoFS(SD_MMC, "sample1_ÄÖÜäöüß.m4a");
+    listDir(SD, "/", 5);
+
+    audio.connecttoFS(SD, "/320k_test.mp3"); 
+//    audio.connecttoFS(SD, "/test.mp3");
 //    audio.connecttoSD("sample1.m4a");
-//    audio.connecttohost("http://www.wdr.de/wdrlive/media/einslive.m3u");
-//    audio.connecttohost("http://macslons-irish-pub-radio.com/media.asx");
-//    audio.connecttohost("http://mp3.ffh.de/radioffh/hqlivestream.aac"); //  128k aac
-//    audio.connecttohost("http://mp3.ffh.de/radioffh/hqlivestream.mp3"); //  128k mp3
-//    audio.connecttospeech("Wenn die Hunde schlafen, kann der Wolf gut Schafe stehlen.", "de");
+//    audio.connecttoFS(SD_MMC, "sample1_ÄÖÜäöüß.m4a");
+
 }
 
 void loop()
